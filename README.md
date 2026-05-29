@@ -1,46 +1,110 @@
-# NEC IR Transceiver for Vicharak Shrike
+# IR Transmitter and Receiver
 
-Hardware-accelerated NEC IR transmitter and receiver for the Shrike board. The FPGA handles all the 38kHz modulation, NEC encoding/decoding, and repeat code generation. The RP2040 just sends address + command over SPI.
+**Difficulty:** Intermediate
 
-## How it works
+**Uses MCU:** Yes
 
-- MCU shifts 16 bits (8-bit address + 8-bit command) into the FPGA via SPI
-- FPGA generates the full 32-bit NEC frame with proper timing (9ms leader, 4.5ms space, 562.5us/1.6875ms data bits)
-- On receive side, TSOP feeds into the FPGA which decodes the frame and shifts it back to the MCU
-- Repeat codes (0xFFFF) are handled natively in hardware
+**External Hardware:** IR LED, TSOP1838 IR Receiver, Shrike Board, Breadboard, Jumper Wires
 
-## Pinout
+## Overview
 
-| Signal | Direction | Pin |
-| --- | --- | --- |
-| mcu_sck | MCU -> FPGA | PIN 3 |
-| mcu_sdi | MCU -> FPGA | PIN 4 |
-| mcu_sdo | FPGA -> MCU | PIN 5 |
-| mcu_tx_en | MCU -> FPGA | PIN 6 |
-| mcu_rx_valid | FPGA -> MCU | PIN 17 |
-| mcu_tx_busy | FPGA -> MCU | PIN 18 |
-| ir_out | FPGA -> IR LED | Any free pin |
-| tsop_in | TSOP -> FPGA | Any free pin |
+This example implements a full NEC infrared transmitter and receiver using the Shrike board. The FPGA handles 38kHz carrier generation, NEC protocol encoding/decoding, and repeat code processing. The RP2040 communicates with the FPGA over a custom SPI interface to send and receive IR commands.
 
-## Structure
+The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8-bit command, and inverted command. Data is modulated onto a 38kHz carrier with precise burst timings (562.5us marks, 1.6875ms spaces for logic 1). The FPGA generates all of this natively in hardware, so the MCU only needs to shift in 16 bits and pulse a trigger pin.
+
+## Compatibility
+
+| Board                | Firmware                | Status     |
+| -------------------- | ----------------------- | ---------- |
+| Shrike-Lite (RP2040) | MicroPython SPI driver  | ✅ Tested   |
+| Shrike (RP2350)      | MicroPython SPI driver  | ⬜ Untested |
+| Shrike-fi (ESP32-S3) | MicroPython SPI driver  | ⬜ Untested |
+
+> FPGA bitstream is the same across all boards.
+
+## Requirements
+
+* Shrike board (any variant)
+* IR LED (940nm recommended)
+* TSOP1838 IR receiver module
+* Breadboard
+* Jumper wires
+* 100 ohm resistor (current limiting for IR LED)
+
+## Hardware Setup
+
+### IR LED (Transmitter)
+
+Connect the IR LED to the FPGA output pin through a 100 ohm current limiting resistor.
+
+* FPGA `ir_out` pin → 100Ω Resistor → IR LED Anode
+* IR LED Cathode → GND
+
+### TSOP1838 (Receiver)
+
+The TSOP module has 3 pins: OUT, GND, VCC.
+
+* TSOP OUT → FPGA `tsop_in` pin
+* TSOP GND → GND
+* TSOP VCC → 3.3V
+
+### Pin Connections
+
+| Signal       | Direction    | FPGA Pin | Description                     |
+| ------------ | ------------ | -------- | ------------------------------- |
+| mcu_sck      | MCU → FPGA   | PIN 3    | SPI clock                       |
+| mcu_sdi      | MCU → FPGA   | PIN 4    | SPI data in (address + command) |
+| mcu_sdo      | FPGA → MCU   | PIN 5    | SPI data out (decoded frame)    |
+| mcu_tx_en    | MCU → FPGA   | PIN 6    | Trigger transmission            |
+| mcu_rx_valid | FPGA → MCU   | PIN 17   | Frame decoded, ready to read    |
+| mcu_tx_busy  | FPGA → MCU   | PIN 18   | Transmission in progress        |
+| ir_out       | FPGA → LED   | PIN 21   | Modulated 38kHz carrier output  |
+| tsop_in      | TSOP → FPGA  | PIN 22   | Demodulated NEC input           |
+
+## How It Works
+
+1. MCU shifts 16 bits into the FPGA via SPI (8-bit address + 8-bit command, LSB first)
+2. MCU pulses `mcu_tx_en` high to start transmission
+3. FPGA asserts `mcu_tx_busy` and generates the full NEC frame on `ir_out`
+4. On the receive side, TSOP demodulates the 38kHz carrier and feeds a clean envelope into `tsop_in`
+5. FPGA decodes the NEC frame and asserts `mcu_rx_valid`
+6. MCU clocks out the decoded 16 bits via `mcu_sdo`
+7. Sending address=0xFFFF triggers a repeat code (9ms burst + 2.25ms space)
+
+## File Structure
 
 ```
 IR_PROJECT/
-├── IR_PROJECT.ffpga          # source project file
-├── bitstream/
-│   └── IR_PROJECT.bin        # compiled bitstream
+├── IR_PROJECT.ffpga
 ├── ffpga/
-│   ├── src/                  # verilog source
-│   │   ├── modulator.v       # top module with SPI + NEC logic
-│   │   ├── nec_encoder.v     # NEC TX encoder
-│   │   ├── nec_decoder.v     # NEC RX decoder
-│   │   ├── carrier_generator.v
-│   │   └── tb_ir_top.v       # top-level wrapper
+│   ├── src/
+│   │   ├── tb_ir_top.v          # top-level wrapper
+│   │   ├── modulator.v          # SPI interface + control logic
+│   │   ├── nec_encoder.v        # NEC TX encoder
+│   │   ├── nec_decoder.v        # NEC RX decoder
+│   │   └── carrier_generator.v  # 38kHz carrier
 │   └── sim/
-│       └── tb_ir_top.v       # testbench
+│       └── tb_ir_top.v          # testbench
 └── README.md
 ```
 
 ## Simulation
 
-Tested with Icarus Verilog. TX sends address 0x12, command 0x34 and the waveform shows correct NEC timing on all signals. RX decodes the loopback correctly.
+Run with Icarus Verilog:
+
+```
+cd ffpga/sim
+iverilog -o tb_ir_top.vvp tb_ir_top.v ../src/tb_ir_top.v
+vvp tb_ir_top.vvp
+```
+
+Expected output:
+
+```
+=== NEC IR Loopback Tests | 50 MHz ===
+PASS [DATA   addr=0x12 cmd=0x34]: got 0x3412
+PASS [REPEAT 0xFFFF]: got 0xFFFF
+======================================
+ALL TESTS PASSED
+======================================
+```
