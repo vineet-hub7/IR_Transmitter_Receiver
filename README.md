@@ -12,24 +12,14 @@ This example implements a full NEC infrared transmitter and receiver using the S
 
 The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8-bit command, and inverted command. Data is modulated onto a 38kHz carrier with precise burst timings (562.5us marks, 1.6875ms spaces for logic 1). The FPGA generates all of this natively in hardware, so the MCU only needs to shift in 16 bits and pulse a trigger pin.
 
-## Compatibility
-
-| Board                | Firmware                | Status     |
-| -------------------- | ----------------------- | ---------- |
-| Shrike-Lite (RP2040) | MicroPython SPI driver  | ✅ Tested   |
-| Shrike (RP2350)      | MicroPython SPI driver  | ⬜ Untested |
-| Shrike-fi (ESP32-S3) | MicroPython SPI driver  | ⬜ Untested |
-
-> FPGA bitstream is the same across all boards.
-
 ## Requirements
 
-* Shrike board (any variant)
-* IR LED (940nm recommended)
-* TSOP1838 IR receiver module
-* Breadboard
-* Jumper wires
-* 100 ohm resistor (current limiting for IR LED)
+- Shrike board (any variant)
+- IR LED (940nm recommended)
+- TSOP1838 IR receiver module
+- Breadboard
+- Jumper wires
+- 100 ohm resistor (current limiting for IR LED)
 
 ## Hardware Setup
 
@@ -37,29 +27,29 @@ The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8
 
 Connect the IR LED to the FPGA output pin through a 100 ohm current limiting resistor.
 
-* FPGA `ir_out` pin → 100Ω Resistor → IR LED Anode
-* IR LED Cathode → GND
+- FPGA `ir_out` pin → 100Ω Resistor → IR LED Anode
+- IR LED Cathode → GND
 
 ### TSOP1838 (Receiver)
 
 The TSOP module has 3 pins: OUT, GND, VCC.
 
-* TSOP OUT → FPGA `tsop_in` pin
-* TSOP GND → GND
-* TSOP VCC → 3.3V
+- TSOP OUT → FPGA `tsop_in` pin
+- TSOP GND → GND
+- TSOP VCC → 3.3V
 
 ### Pin Connections
 
-| Signal       | Direction    | FPGA Pin | Description                     |
-| ------------ | ------------ | -------- | ------------------------------- |
-| mcu_sck      | MCU → FPGA   | PIN 3    | SPI clock                       |
-| mcu_sdi      | MCU → FPGA   | PIN 4    | SPI data in (address + command) |
-| mcu_sdo      | FPGA → MCU   | PIN 5    | SPI data out (decoded frame)    |
-| mcu_tx_en    | MCU → FPGA   | PIN 6    | Trigger transmission            |
-| mcu_rx_valid | FPGA → MCU   | PIN 17   | Frame decoded, ready to read    |
-| mcu_tx_busy  | FPGA → MCU   | PIN 18   | Transmission in progress        |
-| ir_out       | FPGA → LED   | PIN 21   | Modulated 38kHz carrier output  |
-| tsop_in      | TSOP → FPGA  | PIN 22   | Demodulated NEC input           |
+| Signal       | Direction   | FPGA Pin | Description                     |
+| ------------ | ----------- | -------- | ------------------------------- |
+| mcu_sck      | MCU → FPGA  | PIN 3    | SPI clock                       |
+| mcu_sdi      | MCU → FPGA  | PIN 4    | SPI data in (address + command) |
+| mcu_sdo      | FPGA → MCU  | PIN 5    | SPI data out (decoded frame)    |
+| mcu_tx_en    | MCU → FPGA  | PIN 6    | Trigger transmission            |
+| mcu_rx_valid | FPGA → MCU  | PIN 17   | Frame decoded, ready to read    |
+| mcu_tx_busy  | FPGA → MCU  | PIN 18   | Transmission in progress        |
+| ir_out       | FPGA → LED  | PIN 21   | Modulated 38kHz carrier output  |
+| tsop_in      | TSOP → FPGA | PIN 22   | Demodulated NEC input           |
 
 ## How It Works
 
