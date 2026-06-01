@@ -4,7 +4,7 @@
 
 **Uses MCU:** Yes
 
-**External Hardware:** 5mm IR LED, TSOP1738 IR Receiver, Shrike Lite Board, Breadboard, Jumper Wires
+**External Hardware:** Yes
 
 ## Overview
 
@@ -14,9 +14,9 @@ The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8
 
 ## Requirements
 
-- Shrike board (any variant)
-- IR LED (940nm recommended)
-- TSOP1838 IR receiver module
+- Shrike Lite board
+- IR LED (5mm)
+- TSOP1738 IR receiver module
 - Breadboard
 - Jumper wires
 - 100 ohm resistor (current limiting for IR LED)
