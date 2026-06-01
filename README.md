@@ -4,7 +4,7 @@
 
 **Uses MCU:** Yes
 
-**External Hardware:** IR LED, TSOP1838 IR Receiver, Shrike Board, Breadboard, Jumper Wires
+**External Hardware:** 5mm IR LED, TSOP1738 IR Receiver, Shrike Lite Board, Breadboard, Jumper Wires
 
 ## Overview
 
