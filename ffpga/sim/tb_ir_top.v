@@ -1,115 +1,144 @@
 `timescale 1ns / 1ps
 `include "../src/carrier_generator.v"
+`include "../src/uart_rx.v"
+`include "../src/uart_tx.v"
 `include "../src/nec_encoder.v"
 `include "../src/nec_decoder.v"
 `include "../src/modulator.v"
 
 module tb_ir_top();
 reg clk = 0;
-reg mcu_sck = 0;
-reg mcu_sdi = 0;
-reg mcu_tx_en = 0;
-wire mcu_sdo;
-wire mcu_tx_busy;
-wire mcu_rx_valid;
+reg uart_rx = 1;
+wire uart_tx;
+wire uart_tx_en;
 wire ir_out;
+wire ir_out_en;
 
 reg [10:0] carrier_hold = 11'd0;
 always @(posedge clk)
-if (ir_out)
-carrier_hold <= 11'd1316;
-else if (carrier_hold > 0)
-carrier_hold <= carrier_hold - 11'd1;
+  if (ir_out)
+    carrier_hold <= 11'd1316;
+  else if (carrier_hold > 0)
+    carrier_hold <= carrier_hold - 11'd1;
 wire tsop_in = (carrier_hold > 0) ? 1'b0 : 1'b1;
-ir_top dut (.i_clk(clk),.mcu_sck(mcu_sck),.mcu_sdi(mcu_sdi),.mcu_tx_en(mcu_tx_en),.mcu_sdo(mcu_sdo),.mcu_sdo_en(),.mcu_tx_busy(mcu_tx_busy),
-.mcu_tx_busy_en(),.mcu_rx_valid(mcu_rx_valid),.mcu_rx_valid_en (),.tsop_in(tsop_in),.ir_out(ir_out),.ir_out_en(),.o_clk_en(),.oc_en());
+
+ir_top dut (
+  .i_clk(clk),
+  .uart_rx(uart_rx),
+  .uart_tx(uart_tx),
+  .uart_tx_en(uart_tx_en),
+  .tsop_in(tsop_in),
+  .ir_out(ir_out),
+  .ir_out_en(ir_out_en),
+  .o_clk_en());
 
 always #10 clk = ~clk;
 
-task spi_shift_out;
-input [15:0] data;
-integer i;
-begin
-for (i = 0; i < 16; i = i + 1) begin
-@(negedge clk);
-mcu_sdi = data[i];
-#50;
-mcu_sck = 1;
-#200;
-mcu_sck = 0;
-#100;
-end
-mcu_sdi = 0;
-end
+task uart_send_byte;
+  input [7:0] data;
+  integer i;
+  begin
+    // Start bit
+    uart_rx = 1'b0;
+    #8680;
+    // Data bits (LSB first)
+    for (i = 0; i < 8; i = i + 1) begin
+      uart_rx = data[i];
+      #8680;
+    end
+    // Stop bit
+    uart_rx = 1'b1;
+    #8680;
+  end
 endtask
 
-task spi_shift_in;
-output [15:0] data;
-integer i;
-reg [15:0] tmp;
-begin
-tmp = 0;
-for (i = 0; i < 16; i = i + 1) begin
-tmp = (tmp << 1) | mcu_sdo;
-#100;
-mcu_sck = 1;
-#200;
-mcu_sck = 0;
-#100;
-end
-data = tmp;
-end
+task uart_send_cmd;
+  input [7:0] cmd_type;
+  input [7:0] addr;
+  input [7:0] cmd;
+  begin
+    uart_send_byte(cmd_type);
+    uart_send_byte(addr);
+    uart_send_byte(cmd);
+  end
 endtask
 
-task run_test;
-input [15:0] tx_data;
-input [15:0] expected;
-input [63:0] label;
-reg [15:0] rx_data;
-reg [7:0] rx_addr, rx_cmd;
-begin
-spi_shift_out(tx_data);
-repeat(2) @(posedge clk);
-mcu_tx_en = 1;
-repeat(5) @(posedge clk);
-mcu_tx_en = 0;
-wait(mcu_tx_busy);
-@(negedge mcu_tx_busy);
-wait(mcu_rx_valid);
-spi_shift_in(rx_data);
-if (rx_data === expected)
-$display("PASS [%s]: got 0x%04X", label, rx_data);
-else begin
-$display("FAIL [%s]: expected 0x%04X got 0x%04X", label, expected, rx_data);
-fail_count = fail_count + 1;
-end
-#10000;
-end
+task uart_read_byte;
+  output [7:0] data;
+  integer i;
+  reg [7:0] tmp;
+  begin
+    // Wait for start bit (falling edge of uart_tx)
+    @(negedge uart_tx);
+    // Wait 1.5 bit times to sample in the middle of bit 0
+    #13020;
+    for (i = 0; i < 8; i = i + 1) begin
+      tmp[i] = uart_tx;
+      #8680;
+    end
+    data = tmp;
+    // Wait remaining part of stop bit to clear
+    #4340;
+  end
 endtask
 
-initial begin
-$dumpfile("tb_ir_top.vcd");
-$dumpvars(0, tb_ir_top.clk,
-tb_ir_top.mcu_sck,
-tb_ir_top.mcu_sdi,
-tb_ir_top.mcu_tx_en,
-tb_ir_top.tsop_in,
-tb_ir_top.mcu_sdo,
-tb_ir_top.mcu_tx_busy,
-tb_ir_top.mcu_rx_valid,
-tb_ir_top.ir_out);
-end
+task uart_read_resp;
+  output [7:0] cmd_type;
+  output [7:0] addr;
+  output [7:0] cmd;
+  begin
+    uart_read_byte(cmd_type);
+    uart_read_byte(addr);
+    uart_read_byte(cmd);
+  end
+endtask
 
 integer fail_count = 0;
+
+task run_test;
+  input [7:0] tx_type;
+  input [7:0] tx_addr;
+  input [7:0] tx_cmd;
+  input [7:0] expected_type;
+  input [7:0] expected_addr;
+  input [7:0] expected_cmd;
+  input [199:0] label;
+  reg [7:0] rx_type;
+  reg [7:0] rx_addr;
+  reg [7:0] rx_cmd;
+  begin
+    $display("[%0t] Starting test: %s", $time, label);
+    // Send UART command
+    uart_send_cmd(tx_type, tx_addr, tx_cmd);
+    
+    // Wait for response over UART
+    uart_read_resp(rx_type, rx_addr, rx_cmd);
+    
+    if (rx_type === expected_type && rx_addr === expected_addr && rx_cmd === expected_cmd) begin
+      $display("PASS [%s]: got type=0x%02X addr=0x%02X cmd=0x%02X", label, rx_type, rx_addr, rx_cmd);
+    end else begin
+      $display("FAIL [%s]: expected type=0x%02X addr=0x%02X cmd=0x%02X, got type=0x%02X addr=0x%02X cmd=0x%02X", 
+               label, expected_type, expected_addr, expected_cmd, rx_type, rx_addr, rx_cmd);
+      fail_count = fail_count + 1;
+    end
+    #100000;
+  end
+endtask
+
 initial begin
-    $display("=== NEC IR Loopback Tests | 50 MHz ===");
+  $dumpfile("tb_ir_top.vcd");
+  $dumpvars(1, tb_ir_top);
+end
+
+initial begin
+    $display("=== NEC IR UART Loopback Tests | 50 MHz ===");
     #500;
-    run_test(16'h3412, 16'h3412, "DATA   addr=0x12 cmd=0x34");
-    run_test(16'hFFFF, 16'hFFFF, "REPEAT 0xFFFF");
-    $display("======================================");
+    run_test(8'h01, 8'h12, 8'h34, 8'h01, 8'h12, 8'h34, "DATA   addr=0x12 cmd=0x34");
+    run_test(8'h02, 8'h00, 8'h00, 8'h02, 8'h12, 8'h34, "REPEAT 0x02");
+    $display("========================================");
     if (fail_count == 0) $display("ALL TESTS PASSED");
     else $display("%0d TEST(S) FAILED", fail_count);
-    $display("======================================");
+    $display("========================================");
     $finish;
 end
 

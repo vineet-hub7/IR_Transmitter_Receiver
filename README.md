@@ -2,24 +2,15 @@
 
 **Difficulty:** Intermediate
 
-**Uses MCU:** Yes
+**Uses MCU:** Yes (RP2040/RP2350)
 
-**External Hardware:** Yes
+**External Hardware:** IR LED, TSOP1738 (or similar) IR Receiver, Shrike Board, Breadboard, Jumper Wires
 
 ## Overview
 
-This example implements a full NEC infrared transmitter and receiver using the Shrike board. The FPGA handles 38kHz carrier generation, NEC protocol encoding/decoding, and repeat code processing. The RP2040 communicates with the FPGA over a custom SPI interface to send and receive IR commands.
+This project implements a full NEC infrared transmitter and receiver using the Shrike FPGA board. The FPGA handles 38kHz carrier generation, NEC protocol encoding/decoding, and repeat code processing. The RP2040 communicates with the FPGA over a **UART interface** (115200 baud) to send and receive IR commands.
 
-The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8-bit command, and inverted command. Data is modulated onto a 38kHz carrier with precise burst timings (562.5us marks, 1.6875ms spaces for logic 1). The FPGA generates all of this natively in hardware, so the MCU only needs to shift in 16 bits and pulse a trigger pin.
-
-## Requirements
-
-- Shrike Lite board
-- IR LED (5mm)
-- TSOP1738 IR receiver module
-- Breadboard
-- Jumper wires
-- 100 ohm resistor (current limiting for IR LED)
+The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8-bit command, and inverted command. Data is modulated onto a 38kHz carrier with precise burst timings. The FPGA generates all of this natively in hardware, so the MCU only needs to send a simple 3-byte payload over UART.
 
 ## Hardware Setup
 
@@ -27,74 +18,85 @@ The NEC protocol transmits 32 bits per frame: 8-bit address, inverted address, 8
 
 Connect the IR LED to the FPGA output pin through a 100 ohm current limiting resistor.
 
-- FPGA `ir_out` pin → 100Ω Resistor → IR LED Anode
+- FPGA `ir_out` (e.g., `FPGA_IO7`) → 100Ω Resistor → IR LED Anode
 - IR LED Cathode → GND
 
-### TSOP1838 (Receiver)
+### TSOP1738 (Receiver)
 
-The TSOP module has 3 pins: OUT, GND, VCC.
+The TSOP module has 3 pins: OUT, GND, VCC. Hold it with the front dome facing you and pins pointing down (Left to Right: GND, VCC, OUT).
 
-- TSOP OUT → FPGA `tsop_in` pin
+- TSOP OUT → FPGA `tsop_in` pin (e.g., `FPGA_IO2`)
 - TSOP GND → GND
 - TSOP VCC → 3.3V
 
-### Pin Connections
+### Pin Connections (Example)
 
-| Signal       | Direction   | FPGA Pin | Description                     |
-| ------------ | ----------- | -------- | ------------------------------- |
-| mcu_sck      | MCU → FPGA  | PIN 3    | SPI clock                       |
-| mcu_sdi      | MCU → FPGA  | PIN 4    | SPI data in (address + command) |
-| mcu_sdo      | FPGA → MCU  | PIN 5    | SPI data out (decoded frame)    |
-| mcu_tx_en    | MCU → FPGA  | PIN 6    | Trigger transmission            |
-| mcu_rx_valid | FPGA → MCU  | PIN 17   | Frame decoded, ready to read    |
-| mcu_tx_busy  | FPGA → MCU  | PIN 18   | Transmission in progress        |
-| ir_out       | FPGA → LED  | PIN 21   | Modulated 38kHz carrier output  |
-| tsop_in      | TSOP → FPGA | PIN 22   | Demodulated NEC input           |
+| Signal  | Direction   | Description                    |
+| ------- | ----------- | ------------------------------ |
+| uart_rx | MCU → FPGA  | UART RX on FPGA (115200 baud)  |
+| uart_tx | FPGA → MCU  | UART TX from FPGA              |
+| ir_out  | FPGA → LED  | Modulated 38kHz carrier output |
+| tsop_in | TSOP → FPGA | Demodulated NEC input          |
+
+_Check `IR_PROJECT.ffpga` IO planner for your exact pin mappings!_
 
 ## How It Works
 
-1. MCU shifts 16 bits into the FPGA via SPI (8-bit address + 8-bit command, LSB first)
-2. MCU pulses `mcu_tx_en` high to start transmission
-3. FPGA asserts `mcu_tx_busy` and generates the full NEC frame on `ir_out`
-4. On the receive side, TSOP demodulates the 38kHz carrier and feeds a clean envelope into `tsop_in`
-5. FPGA decodes the NEC frame and asserts `mcu_rx_valid`
-6. MCU clocks out the decoded 16 bits via `mcu_sdo`
-7. Sending address=0xFFFF triggers a repeat code (9ms burst + 2.25ms space)
+1. **Python Script**: The MCU sends 3 bytes via UART to the FPGA at 115200 baud.
+   - `Byte 1`: Command Type (`0x01` for DATA, `0x02` for REPEAT)
+   - `Byte 2`: Address (`0x12`)
+   - `Byte 3`: Command (`0x34`)
+2. **FPGA Encoding**: The FPGA receives the UART command, generates the 38kHz carrier, and outputs the precise 9ms leading pulse followed by the 32-bit payload (or a 2.25ms gap + short burst for REPEAT) on `ir_out`.
+3. **IR Transmission**: The IR LED flashes and the signal bounces into the TSOP receiver.
+4. **FPGA Decoding**: The TSOP pulls `tsop_in` low during bursts. The FPGA decodes the NEC frame.
+5. **Loopback**: Upon successful decode, the FPGA transmits the exact same 3 bytes back to the MCU over `uart_tx` to verify success!
 
 ## File Structure
 
 ```
 IR_PROJECT/
-├── IR_PROJECT.ffpga
+├── IR_PROJECT.ffpga     # Shrike IDE project file
+├── bitstream/
+│   └── IR_project.bin   # Compiled bitstream ready to flash
 ├── ffpga/
 │   ├── src/
-│   │   ├── tb_ir_top.v          # top-level wrapper
-│   │   ├── modulator.v          # SPI interface + control logic
+│   │   ├── modulator.v          # Top-level integration (ir_top)
+│   │   ├── uart_rx.v            # UART Receiver (115200 baud)
+│   │   ├── uart_tx.v            # UART Transmitter (115200 baud)
 │   │   ├── nec_encoder.v        # NEC TX encoder
 │   │   ├── nec_decoder.v        # NEC RX decoder
 │   │   └── carrier_generator.v  # 38kHz carrier
 │   └── sim/
-│       └── tb_ir_top.v          # testbench
+│       └── tb_ir_top.v          # Testbench testing full UART loopback
+├── images/                      # Diagrams and waveform screenshots
+├── main.py                      # MicroPython script for RP2040
 └── README.md
 ```
 
 ## Simulation
 
-Run with Icarus Verilog:
+You can verify the entire pipeline (including the UART loopback and the exact 38kHz IR modulation) using Icarus Verilog and GTKWave.
 
-```
+```bash
 cd ffpga/sim
-iverilog -o tb_ir_top.vvp tb_ir_top.v ../src/tb_ir_top.v
-vvp tb_ir_top.vvp
+iverilog -o sim.vvp tb_ir_top.v ../src/modulator.v ../src/uart_rx.v ../src/uart_tx.v ../src/nec_encoder.v ../src/nec_decoder.v ../src/carrier_generator.v
+vvp sim.vvp
 ```
 
 Expected output:
 
 ```
-=== NEC IR Loopback Tests | 50 MHz ===
-PASS [DATA   addr=0x12 cmd=0x34]: got 0x3412
-PASS [REPEAT 0xFFFF]: got 0xFFFF
-======================================
+=== NEC IR UART Loopback Tests | 50 MHz ===
+[500000] Starting test: DATA   addr=0x12 cmd=0x34
+PASS [DATA   addr=0x12 cmd=0x34]: got type=0x01 addr=0x12 cmd=0x34
+[68706090000] Starting test:               REPEAT 0x02
+PASS [              REPEAT 0x02]: got type=0x02 addr=0x12 cmd=0x34
+========================================
 ALL TESTS PASSED
-======================================
+========================================
 ```
+
+Load `tb_ir_top.vcd` in GTKWave to view the exact waveforms!
+
+![Pipeline Architecture](images/pipeline_architecture.png)
+![Waveform Verification](images/waveform_verification.png)
