@@ -12,7 +12,7 @@ carrier <= 1'b0;
 end else if (!enable_prev) begin
 counter <= 10'd0;
 carrier <= 1'b1;
-end else if (counter == 10'd657) begin
+end else if (counter == 10'd661) begin
 counter <= 10'd0;
 carrier <= ~carrier;
 end else
