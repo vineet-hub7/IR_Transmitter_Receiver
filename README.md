@@ -117,6 +117,32 @@ RESULT: PASS  (loopback decode matches transmitted frame)
 
 Useful signals in GTKWave: `mod_enable` (NEC envelope — leader, bits, stop), `ir_out`/`carrier` (38 kHz), `tsop_in` (demodulated), `dec_valid`, `dec_addr`, `dec_cmd`.
 
+## Waveforms and verification
+
+Command shifted in, then the NEC leader burst starts (`nec_send`, `mod_enable`, `carrier`, `ir_out` assert; encoder state 000 → 001):
+
+![Command in, leader start](images/nec_tx_leader_burst_start.png)
+
+The full 9 ms leader mark — solid 38 kHz burst, then the transition to the leader space:
+
+![9 ms leader burst](images/nec_leader_burst_9ms.png)
+
+The 32-bit payload using pulse-distance coding (short gap = 0, long gap = 1):
+
+![Data bits](images/nec_data_bits.png)
+
+Whole frame in one view — leader, 32 bits, stop, gap, decode at the end:
+
+![Full frame overview](images/nec_full_overview.png)
+
+Decode success — `dec_addr = 0x12`, `dec_cmd = 0x34`, `rx_status = 0x81`, `data_out` high:
+
+![Decode success](images/nec_decode_success.png)
+
+Running `demo.py` on hardware — all commands transmitted and decoded back over the real IR link:
+
+![Hardware verification in Thonny](images/thonny_terminal_verification.png)
+
 ## File structure
 
 ```
