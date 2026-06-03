@@ -1,11 +1,6 @@
-# ============================================================
-#   IR NEC TRANSMITTER / RECEIVER  -  Vicharak Shrike (eFPGA)
-#   Showcase demo: MCU <-> FPGA <-> IR LED <-> TSOP <-> FPGA <-> MCU
-# ============================================================
 import shrike, time
 from machine import Pin
 
-# ---- Program the FPGA fabric -------------------------------
 print("=" * 56)
 print("   IR NEC PROJECT - Vicharak Shrike (RP2040 + eFPGA)")
 print("=" * 56)
@@ -14,15 +9,11 @@ shrike.flash("FPGA_bitstream_MCU.bin")
 time.sleep(1)
 print("FPGA programmed OK.\n")
 
-# ---- Pin setup ---------------------------------------------
 data = Pin(5, Pin.OUT, value=0)
 clk  = Pin(6, Pin.OUT, value=0)
 dout = Pin(7, Pin.IN, Pin.PULL_DOWN)
 
-
-# ---- Low-level protocol helpers ----------------------------
 def send_word(b0, b1, b2):
-    """Shift 24 bits (type, addr, cmd) MSB-first into the FPGA."""
     word = (b0 << 16) | (b1 << 8) | b2
     for i in range(23, -1, -1):
         data.value((word >> i) & 1)
@@ -32,8 +23,6 @@ def send_word(b0, b1, b2):
     data.value(0)
 
 def read_word():
-    """Read 24 bits, MSB first. Sample the stable bit, then pulse the
-    clock to advance the FPGA to the next bit."""
     w = 0
     for i in range(24):
         bit = dout.value()
@@ -43,9 +32,8 @@ def read_word():
     return w
 
 def _one_shot(addr, cmd):
-    """Single transmit -> IR -> TSOP -> decode -> read back."""
-    send_word(0x01, addr, cmd)     # 0x01 = NEC data frame
-    time.sleep_ms(150)             # let the 67ms NEC frame finish + decode
+    send_word(0x01, addr, cmd)  
+    time.sleep_ms(150)     
     if not dout.value():
         return None
     w = read_word()
@@ -59,7 +47,6 @@ def _one_shot(addr, cmd):
     return None
 
 def transmit_and_decode(addr, cmd, tries=5):
-    """Retry until the decoded frame matches. Returns (result, attempts)."""
     for n in range(1, tries + 1):
         r = _one_shot(addr, cmd)
         if isinstance(r, tuple) and r == (addr, cmd):
@@ -67,8 +54,6 @@ def transmit_and_decode(addr, cmd, tries=5):
         time.sleep_ms(120)
     return r, tries
 
-
-# ---- Explain the NEC frame ---------------------------------
 print("NEC protocol frame structure transmitted on IR:")
 print("    +--------+-----------+-----------+------------+------+")
 print("    | 9ms ON | 4.5ms OFF | 32 bits   | addr/cmd   | stop |")
@@ -77,8 +62,6 @@ print("    32 bits = addr, ~addr, cmd, ~cmd  (each bit = 38kHz burst)")
 print("    Logic 0 = 562us burst + 562us gap")
 print("    Logic 1 = 562us burst + 1687us gap\n")
 
-
-# ---- Run a sequence of commands ----------------------------
 test_set = [
     (0x12, 0x34),
     (0x00, 0x20),
@@ -113,7 +96,6 @@ print("    " + "-" * 40)
 print("    {}/{} commands transmitted and decoded correctly\n".format(
       passed, len(test_set)))
 
-# ---- Summary -----------------------------------------------
 print("=" * 56)
 if passed == len(test_set):
     print("   RESULT: IR LINK FULLY WORKING")
