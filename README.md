@@ -8,9 +8,9 @@
 
 ## Overview
 
-A complete NEC infrared transmitter and receiver built on the Shrike eFPGA board. All timing-critical work runs in the FPGA fabric: 38 kHz carrier generation, NEC frame encoding, and NEC frame decoding (including repeat codes). The RP2040 only sends a 3-byte command and reads back a 3-byte result over a simple two-wire link.
+A complete NEC infrared transmitter and receiver built on the Shrike Lite board. All timing-critical work runs in the FPGA fabric: 38 kHz carrier generation, NEC frame encoding, and NEC frame decoding. The RP2040 only sends a 3-byte command and reads back a 3-byte result over a simple two-wire link.
 
-A NEC frame is 32 bits — address, inverted address, command, inverted command — modulated onto a 38 kHz carrier with a 9 ms leader. The FPGA produces this entirely in hardware, so the MCU side stays trivial.
+A NEC frame is 32 bits: address, inverted address, command, inverted command which is modulated onto a 38 kHz carrier with a 9 ms leader. The FPGA produces this entirely in hardware, so the MCU side stays trivial.
 
 ```
 RP2040  --2-wire-->  FPGA NEC encoder  -->  38 kHz carrier  -->  IR LED
