@@ -2,17 +2,15 @@
 
 **Difficulty:** Intermediate
 
-**MCU:** RP2040 / RP2350 (Shrike board)
+**Uses MCU:** Yes
 
-**External hardware:** IR LED, TSOP1738 (or compatible 38 kHz IR receiver), current-limiting resistor (~70 Ω), breadboard, jumper wires
+**External Hardware:** IR LED, TSOP1738 (or compatible 38 kHz IR receiver), 220 Ω resistor, breadboard, jumper wires
 
 ## Overview
 
-A complete NEC infrared transmitter and receiver built on the Shrike eFPGA board. All of the timing-critical work runs in the FPGA fabric: 38 kHz carrier generation, NEC frame encoding, and NEC frame decoding (including repeat codes). The RP2040 only sends a 3-byte command and reads back a 3-byte result over a simple two-wire link.
+A complete NEC infrared transmitter and receiver built on the Shrike eFPGA board. All timing-critical work runs in the FPGA fabric: 38 kHz carrier generation, NEC frame encoding, and NEC frame decoding (including repeat codes). The RP2040 only sends a 3-byte command and reads back a 3-byte result over a simple two-wire link.
 
 A NEC frame is 32 bits — address, inverted address, command, inverted command — modulated onto a 38 kHz carrier with a 9 ms leader. The FPGA produces this entirely in hardware, so the MCU side stays trivial.
-
-The end-to-end path is:
 
 ```
 RP2040  --2-wire-->  FPGA NEC encoder  -->  38 kHz carrier  -->  IR LED
@@ -22,66 +20,95 @@ RP2040  --2-wire-->  FPGA NEC encoder  -->  38 kHz carrier  -->  IR LED
 RP2040  <--2-wire--  FPGA NEC decoder  <--  TSOP1738  <-------------+
 ```
 
-## MCU – FPGA link
+## Compatibility
 
-The Shrike's internal SPI/UART configuration pins (FPGA pins 3–6) are held by the configuration logic after the bitstream is flashed and are not usable as general I/O from MicroPython. The dedicated GPIO/I2C pins were also not reliably broken out on this unit. The link is therefore made with three jumper wires between the MCU header and the FPGA header, using a small bit-banged protocol clocked by the MCU. Because the MCU supplies the clock, the transfer is immune to the FPGA oscillator's tolerance (which made a plain UART unreliable).
+| Board                | Firmware                    | Status      |
+| -------------------- | --------------------------- | ----------- |
+| Shrike-Lite (RP2040) | `firmware/micropython/`     | ✅ Tested    |
+| Shrike (RP2350)      | `firmware/micropython/`     | ⬜ Untested  |
+| Shrike-fi (ESP32-S3) | `firmware/micropython/`     | ⬜ Untested  |
+
+> FPGA bitstream is the same across all boards.
+
+## Hardware Setup
 
 ### Wiring
 
-| Signal   | MCU pin   | FPGA pin   | Direction   | Notes                         |
+| Signal   | MCU Pin   | FPGA Pin   | Direction   | Notes                         |
 | -------- | --------- | ---------- | ----------- | ----------------------------- |
-| DATA     | GPIO5     | FPGA_IO0   | MCU → FPGA  | command bits in               |
-| CLOCK    | GPIO6     | FPGA_IO1   | MCU → FPGA  | shared shift clock            |
-| RETURN   | GPIO7     | FPGA_IO18  | FPGA → MCU  | decoded result out            |
+| DATA     | GPIO5     | FPGA_IO0   | MCU → FPGA  | Command bits in               |
+| CLOCK    | GPIO6     | FPGA_IO1   | MCU → FPGA  | Shared shift clock            |
+| RETURN   | GPIO7     | FPGA_IO18  | FPGA → MCU  | Decoded result out            |
 | IR LED   | —         | FPGA_IO7   | FPGA → LED  | 38 kHz modulated output       |
-| TSOP OUT | —         | FPGA_IO8   | TSOP → FPGA | demodulated NEC input (PMOD)  |
-| FPGA LED | —         | GPIO16     | on-board    | heartbeat / decode indicator  |
+| TSOP OUT | —         | FPGA_IO8   | TSOP → FPGA | Demodulated NEC input (PMOD)  |
+| FPGA LED | —         | GPIO16     | On-board    | Heartbeat / decode indicator  |
 
-IR LED: `FPGA_IO7 → ~70 Ω → anode`, cathode to GND.
-TSOP1738 (dome facing you, pins down — GND, VCC, OUT): `GND → GND`, `VCC → 3.3 V`, `OUT → FPGA_IO8`.
+### IR LED Circuit
+
+`FPGA_IO7 → 220 Ω → IR LED anode`, cathode to GND.
+
+### TSOP1738 (dome facing you, pins down — GND, VCC, OUT)
+
+`GND → GND`, `VCC → 3.3 V`, `OUT → FPGA_IO8`
 
 > All Shrike I/O is 3.3 V. Confirm the exact pad assignments in `IR_PROJECT.ffpga` (IO Planner) before wiring.
 
-## Two-wire protocol
+## Quick Start (Pre-Built Bitstream)
 
-**MCU → FPGA (send a command).** The MCU shifts 24 bits, MSB first, toggling DATA then pulsing CLOCK for each bit:
+1. Connect your Shrike board via USB
+2. Copy `bitstream/FPGA_bitstream_MCU.bin` and `firmware/micropython/demo.py` to the RP2040
+3. Run `demo.py` in Thonny
+4. Point the IR LED at the TSOP from a few centimetres away
 
-| Byte | Meaning                                  |
-| ---- | ---------------------------------------- |
-| 0    | type — `0x01` = data frame, `0x02` = repeat |
-| 1    | address                                  |
-| 2    | command                                  |
+> Too close saturates the TSOP, too far drops the signal.
 
-A `0x01`/`0x02` command makes the FPGA transmit the corresponding NEC frame on the IR LED.
+## Build From Source
 
-**FPGA → MCU (read a result).** After a frame is decoded from the TSOP, the FPGA drives RETURN high and presents a 24-bit result. The MCU reads it MSB first using *read-before-clock*: sample RETURN while it is stable, then pulse CLOCK to advance to the next bit.
+### FPGA (Verilog)
 
-| Byte | Meaning                                          |
-| ---- | ------------------------------------------------ |
-| 0    | status — `0x81` = valid data, `0x82` = repeat, `0x00` = nothing |
-| 1    | decoded address                                  |
-| 2    | decoded command                                  |
+1. Open `IR_PROJECT.ffpga` in Go Configure Software Hub
+2. Set the IO Planner to the pins in the wiring table
+3. Click **Synthesize → Generate Bitstream**
+4. Flash from MicroPython with `shrike.flash("FPGA_bitstream_MCU.bin")`
 
-Each new `0x01`/`0x02` command clears the previous result, so a stale frame is never read back.
+### Firmware
 
-## FPGA design (`ffpga/src`)
+1. Open `demo.py` in Thonny
+2. Select MicroPython interpreter (RP2040)
+3. Run the script
+
+## How It Works
+
+### Two-Wire Protocol
+
+**MCU → FPGA (send a command).** The MCU shifts 24 bits MSB first, toggling DATA then pulsing CLOCK for each bit:
+
+| Byte | Meaning                                    |
+| ---- | ------------------------------------------ |
+| 0    | Type — `0x01` = data frame, `0x02` = repeat |
+| 1    | Address                                    |
+| 2    | Command                                    |
+
+**FPGA → MCU (read a result).** After a frame is decoded from the TSOP, the FPGA drives RETURN high and presents a 24-bit result:
+
+| Byte | Meaning                                                          |
+| ---- | ---------------------------------------------------------------- |
+| 0    | Status — `0x81` = valid data, `0x82` = repeat, `0x00` = nothing |
+| 1    | Decoded address                                                  |
+| 2    | Decoded command                                                  |
+
+### FPGA Design (`ffpga/src`)
 
 | File                  | Role                                                            |
 | --------------------- | --------------------------------------------------------------- |
-| `modulator.v`         | Top module `ir_top` — link, command parser, result serializer   |
+| `modulator.v`         | Top module — link, command parser, result serializer             |
 | `nec_encoder.v`       | NEC frame state machine (leader, 32 bits, stop, repeat, gap)    |
 | `carrier_generator.v` | 38 kHz carrier (counter = 661 for the measured 50.33 MHz clock) |
 | `nec_decoder.v`       | NEC decoder with timing windows and glitch rejection            |
 
-The carrier divider and the decoder windows are tuned to the on-board oscillator, which measured 50.33 MHz (counter 661 gives a 38 kHz carrier). The decoder ignores premature TSOP transitions until each segment reaches its minimum expected length, which rejects the TSOP AGC glitches that otherwise corrupt the leader.
+## Expected Output
 
-## MicroPython (`firmware/micropython`)
-
-`demo.py` is a self-contained showcase: it flashes the bitstream, explains the NEC frame, then transmits a set of commands and reads each one back through the IR loopback.
-
-Copy `demo.py` and `bitstream/FPGA_bitstream_MCU.bin` to the RP2040 and run `demo.py` in Thonny. Point the IR LED at the TSOP from a few centimetres away (too close saturates the TSOP, too far drops the signal).
-
-Expected output:
+Running `demo.py` on hardware:
 
 ```
 Live transmit + decode round-trips:
@@ -96,9 +123,11 @@ Live transmit + decode round-trips:
     5/5 commands transmitted and decoded correctly
 ```
 
+![Hardware verification in Thonny](images/thonny_terminal_verification.png)
+
 ## Simulation
 
-The full encode → loopback → decode path can be verified with Icarus Verilog and viewed in GTKWave. The testbench models the TSOP as an active-low demodulator of the carrier.
+The full encode → loopback → decode path can be verified with Icarus Verilog:
 
 ```bash
 cd ffpga/sim
@@ -115,49 +144,27 @@ Expected output:
 RESULT: PASS  (loopback decode matches transmitted frame)
 ```
 
-Useful signals in GTKWave: `mod_enable` (NEC envelope — leader, bits, stop), `ir_out`/`carrier` (38 kHz), `tsop_in` (demodulated), `dec_valid`, `dec_addr`, `dec_cmd`.
+## Waveforms
 
-## Waveforms and verification
+| Waveform | Description |
+| -------- | ----------- |
+| ![Leader start](images/nec_tx_leader_burst_start.png) | Command shifted in, NEC leader burst starts |
+| ![9 ms leader](images/nec_leader_burst_9ms.png) | Full 9 ms leader mark — solid 38 kHz burst |
+| ![Data bits](images/nec_data_bits.png) | 32-bit payload using pulse-distance coding |
+| ![Full frame](images/nec_full_overview.png) | Whole frame — leader, 32 bits, stop, gap |
+| ![Decode success](images/nec_decode_success.png) | Decode success — `addr=0x12`, `cmd=0x34` |
 
-Command shifted in, then the NEC leader burst starts (`nec_send`, `mod_enable`, `carrier`, `ir_out` assert; encoder state 000 → 001):
-
-![Command in, leader start](images/nec_tx_leader_burst_start.png)
-
-The full 9 ms leader mark — solid 38 kHz burst, then the transition to the leader space:
-
-![9 ms leader burst](images/nec_leader_burst_9ms.png)
-
-The 32-bit payload using pulse-distance coding (short gap = 0, long gap = 1):
-
-![Data bits](images/nec_data_bits.png)
-
-Whole frame in one view — leader, 32 bits, stop, gap, decode at the end:
-
-![Full frame overview](images/nec_full_overview.png)
-
-Decode success — `dec_addr = 0x12`, `dec_cmd = 0x34`, `rx_status = 0x81`, `data_out` high:
-
-![Decode success](images/nec_decode_success.png)
-
-Running `demo.py` on hardware — all commands transmitted and decoded back over the real IR link:
-
-![Hardware verification in Thonny](images/thonny_terminal_verification.png)
-
-## File structure
+## File Structure
 
 ```
-IR_PROJECT/
-├── IR_PROJECT.ffpga              # Shrike (Go Configure) project file
+IR_Transmitter_Receiver/
+├── IR_PROJECT.ffpga              # Shrike project file
 ├── bitstream/
-│   └── FPGA_bitstream_MCU.bin    # compiled bitstream to flash
+│   └── FPGA_bitstream_MCU.bin    # Compiled bitstream
 ├── ffpga/
 │   ├── src/                      # Verilog sources
-│   └── sim/                      # testbenches (tb_ir_loopback.v)
+│   └── sim/                      # Testbenches
 ├── firmware/micropython/         # RP2040 scripts
-├── images/                       # waveforms / diagrams
+├── images/                       # Waveforms / diagrams
 └── README.md
 ```
-
-## Build
-
-Open `IR_PROJECT.ffpga` in Renesas Go Configure (ForgeFPGA Workshop), set the IO Planner to the pins in the wiring table, synthesise, and generate the bitstream. Flash it from MicroPython with `shrike.flash("FPGA_bitstream_MCU.bin")`.
