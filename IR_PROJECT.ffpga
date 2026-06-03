@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<GPDProject version="40" oldestCompatibleVersion="32" GPDVersion="6.53.003" lastChange="2 Jun 2026 21:13:53" projectChecksumState="1" projectChecksum="d0ee5ab4">
+<GPDProject version="40" oldestCompatibleVersion="32" GPDVersion="6.53.003" lastChange="2 Jun 2026 22:47:01" projectChecksumState="1" projectChecksum="ac342aab">
     <Metadata>
         <LegalNotice>This Design was generated using Renesas' proprietary Go Configure Software Hub and is provided for use solely in connection with Renesas GreenPAK integrated circuits. Any unauthorized use, reproduction, distribution, or manufacture of this Design is prohibited. This Design is provided 'AS IS' without warranties of any kind.</LegalNotice>
     </Metadata>
@@ -306,7 +306,7 @@
         <wire output="1" input="43" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="67" wireText="NET67" wireState="0">
             <points>(212.00,558.00); (314.00,558.00); (314.00,564.00); (320.00,564.00)</points>
         </wire>
-        <wire output="2" input="44" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="19" wireText="NET19" wireState="0">
+        <wire output="2" input="44" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="19" wireText="NET19" wireState="0">
             <points>(97.00,510.00); (314.00,510.00); (314.00,514.00); (320.00,514.00)</points>
         </wire>
         <wire output="3" input="45" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="68" wireText="NET68" wireState="0">
@@ -324,7 +324,7 @@
         <wire output="7" input="49" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="72" wireText="NET72" wireState="0">
             <points>(97.00,115.00); (314.00,115.00); (314.00,120.00); (320.00,120.00)</points>
         </wire>
-        <wire output="8" input="50" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="73" wireText="NET73" wireState="0">
+        <wire output="8" input="50" autoRouting="1" pen="#0293fdff;1.00;1;32;128" lineType="7" protected="1" CWLid="73" wireText="NET73" wireState="0">
             <points>(1071.00,66.00); (967.00,66.00); (967.00,72.00); (961.00,72.00)</points>
         </wire>
         <wire output="9" input="51" autoRouting="1" pen="#ff8000ff;1.00;1;32;128" lineType="2" protected="1" CWLid="74" wireText="NET74" wireState="0">
@@ -659,7 +659,7 @@
             </pipelineStageState>
             <pipelineStageState>
                 <pipelineStage>1</pipelineStage>
-                <pipelineState>3</pipelineState>
+                <pipelineState>1</pipelineState>
             </pipelineStageState>
         </pipelineStagesStates>
         <modules>
