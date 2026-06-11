@@ -5,7 +5,7 @@ print("=" * 56)
 print("   IR NEC PROJECT - Vicharak Shrike (RP2040 + eFPGA)")
 print("=" * 56)
 print("\nFlashing FPGA bitstream...")
-shrike.flash("FPGA_bitstream_MCU.bin")
+shrike.flash("ir_tx_rx.bin")
 time.sleep(1)
 print("FPGA programmed OK.\n")
 
