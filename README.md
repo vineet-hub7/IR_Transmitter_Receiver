@@ -108,7 +108,7 @@ RP2040  <--2-wire--  FPGA NEC decoder  <--  TSOP1738  <-------------+
 
 ## Expected Output
 
-Running `demo.py` on hardware:
+Running `ir_tx_rx.py.py` on hardware:
 
 ```
 Live transmit + decode round-trips:
