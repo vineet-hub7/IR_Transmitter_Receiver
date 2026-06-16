@@ -38,8 +38,8 @@ def _one_shot(addr, cmd):
         return None
     w = read_word()
     status = (w >> 16) & 0xFF
-    raddr  = (w >> 8)  & 0xFF
-    rcmd   =  w        & 0xFF
+    raddr = (w >> 8) & 0xFF
+    rcmd = w & 0xFF
     if status == 0x81:
         return (raddr, rcmd)
     if status == 0x82:
@@ -80,14 +80,14 @@ for addr, cmd in test_set:
     result, tries = transmit_and_decode(addr, cmd)
     if isinstance(result, tuple) and result == (addr, cmd):
         decoded = "0x{:02X}/0x{:02X}".format(result[0], result[1])
-        status  = "OK"
+        status = "OK"
         passed += 1
     elif result is None:
         decoded = "--"
-        status  = "no decode"
+        status = "no decode"
     else:
         decoded = "0x{:02X}/0x{:02X}".format(result[0], result[1])
-        status  = "mismatch"
+        status = "mismatch"
     print("    0x{:02X} 0x{:02X}   {:<10} {:>4}   {}".format(
           addr, cmd, decoded, tries, status))
     time.sleep_ms(300)

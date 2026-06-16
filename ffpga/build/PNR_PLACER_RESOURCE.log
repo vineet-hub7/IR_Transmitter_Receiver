@@ -1,0 +1,48 @@
+####   Post-Placement Resource Utilization Report   ####
+
+                                                                  
+   120 Logic 6-LUT RBBs                                           
+        455 RBB LUTs utilized (up to 4 per RBB)                   
+            44 of which are 6-input LUTs                          
+           106 of which are dual 5-input LUTs                     
+           561 LUTs total                                         
+        229 RBB FFs utilized (up to 4 pairs per RBB)              
+           148 of which are LUT-FF combination                    
+            50 of which are dual-FFs                              
+            15 of which are dual-LUT-dual-FF combination          
+   7 I/O RBBs                                                     
+          3  Input pins                                           
+          7 Output pins                                           
+          2 Input FFs utilized                                    
+          3 Output FFs utilized                                   
+   Usage of Logic RBBs is 86%.                                    
+   Usage of LUTs is 82%.                                          
+       dual-LUTs is 19%.                                          
+   Usage of FF is 25%.                                            
+       dual-FF is 9%.                                             
+   Usage of IO RBB is 4%.                                         
+
+
+ | ------------------------------------------------------------ | 
+ | TILE X0Y0                                                    | 
+ | 120 Logic 6-LUT RBBs                                         | 
+ |      455 RBB LUTs utilized (up to 4 per RBB)                 | 
+ |          44 of which are 6-input LUTs                        | 
+ |         106 of which are dual 5-input LUTs                   | 
+ |         561 LUTs total                                       | 
+ |      229 RBB FFs utilized (up to 4 pairs per RBB)            | 
+ |         148 of which are LUT-FF combination                  | 
+ |          50 of which are dual-FFs                            | 
+ |          15 of which are dual-LUT-dual-FF combination        | 
+ | 7 I/O RBBs                                                   | 
+ |        3  Input pins                                         | 
+ |        7 Output pins                                         | 
+ |        2 Input FFs utilized                                  | 
+ |        3 Output FFs utilized                                 | 
+ | Usage of Logic RBBs is 86%.                                  | 
+ | Usage of LUTs is 82%.                                        | 
+ |     dual-LUTs is 19%.                                        | 
+ | Usage of FF is 25%.                                          | 
+ |     dual-FF is 9%.                                           | 
+ | Usage of IO RBB is 4%.                                       | 
+ | ------------------------------------------------------------ | 
