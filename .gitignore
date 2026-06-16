@@ -1,0 +1,3 @@
+ffpga/build/
+ffpga/sim/*.vcd
+ffpga/sim/*.vvp
