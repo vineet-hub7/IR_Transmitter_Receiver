@@ -73,7 +73,7 @@ RP2040  <--2-wire--  FPGA NEC decoder  <--  TSOP1738  <-------------+
 
 ### Firmware
 
-1. Open `demo.py` in Thonny
+1. Open `ir_tx_rx.py` in Thonny
 2. Select MicroPython interpreter (RP2040)
 3. Run the script
 
