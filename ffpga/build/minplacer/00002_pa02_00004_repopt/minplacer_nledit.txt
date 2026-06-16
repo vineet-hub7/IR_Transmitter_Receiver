@@ -1,3 +1,0 @@
-NLEDIT_SESSION 100000000 ;
-# C:\Users\heyvi\AppData\Local\Temp\PuuPMsfm\out\minplacer\00002_pa02_00004_repopt ;
-REP NETI 572 EXPECT_REP_INSTI 127 PART 96 64 58 ;
