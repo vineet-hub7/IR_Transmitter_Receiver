@@ -56,8 +56,8 @@ RP2040  <--2-wire--  FPGA NEC decoder  <--  TSOP1738  <-------------+
 ## Quick Start (Pre-Built Bitstream)
 
 1. Connect your Shrike board via USB
-2. Copy `bitstream/FPGA_bitstream_MCU.bin` and `firmware/micropython/demo.py` to the RP2040
-3. Run `demo.py` in Thonny
+2. Copy `bitstream/FPGA_bitstream_MCU.bin` and `firmware/micropython/ir_tx_rx.py.py` to the RP2040
+3. Run `ir_tx_rx.py.py` in Thonny
 4. Point the IR LED at the TSOP from a few centimetres away
 
 > Too close saturates the TSOP, too far drops the signal.
