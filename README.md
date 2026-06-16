@@ -36,12 +36,12 @@ RP2040  <--2-wire--  FPGA NEC decoder  <--  TSOP1738  <-------------+
 
 | Signal   | MCU Pin   | FPGA Pin   | Direction   | Notes                         |
 | -------- | --------- | ---------- | ----------- | ----------------------------- |
-| DATA     | GPIO5     | FPGA_IO0   | MCU → FPGA  | Command bits in               |
-| CLOCK    | GPIO6     | FPGA_IO1   | MCU → FPGA  | Shared shift clock            |
-| RETURN   | GPIO7     | FPGA_IO18  | FPGA → MCU  | Decoded result out            |
-| IR LED   | —         | FPGA_IO7   | FPGA → LED  | 38 kHz modulated output       |
-| TSOP OUT | —         | FPGA_IO8   | TSOP → FPGA | Demodulated NEC input (PMOD)  |
-| FPGA LED | —         | GPIO16     | On-board    | Heartbeat / decode indicator  |
+| data_in  | GPIO5     | FPGA_IO0   | MCU → FPGA  | Command bits in               |
+| clock_in | GPIO6     | FPGA_IO1   | MCU → FPGA  | Shared shift clock            |
+| data_out | GPIO7     | FPGA_IO18  | FPGA → MCU  | Decoded result out            |
+| ir_out   | —         | FPGA_IO7   | FPGA → LED  | 38 kHz modulated output       |
+| tsop_in  | —         | FPGA_IO8   | TSOP → FPGA | Demodulated NEC input (PMOD)  |
+| fpga_led | —         | GPIO16     | On-board    | Heartbeat / decode indicator  |
 
 ### IR LED Circuit
 
@@ -154,17 +154,3 @@ RESULT: PASS  (loopback decode matches transmitted frame)
 | ![Full frame](images/nec_full_overview.png) | Whole frame — leader, 32 bits, stop, gap |
 | ![Decode success](images/nec_decode_success.png) | Decode success — `addr=0x12`, `cmd=0x34` |
 
-## File Structure
-
-```
-IR_Transmitter_Receiver/
-├── IR_PROJECT.ffpga              # Shrike project file
-├── bitstream/
-│   └── FPGA_bitstream_MCU.bin    # Compiled bitstream
-├── ffpga/
-│   ├── src/                      # Verilog sources
-│   └── sim/                      # Testbenches
-├── firmware/micropython/         # RP2040 scripts
-├── images/                       # Waveforms / diagrams
-└── README.md
-```
